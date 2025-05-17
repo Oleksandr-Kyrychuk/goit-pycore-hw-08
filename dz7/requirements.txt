@@ -1,0 +1,1 @@
+sqlalchemy>=2.0.0 alembic>=1.8.0 faker>=18.0.0
