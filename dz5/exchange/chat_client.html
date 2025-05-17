@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Чат з курсами валют</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #chat { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; }
+        #input { width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Чат з курсами валют</h1>
+    <div id="chat"></div>
+    <input id="input" type="text" placeholder="Введіть повідомлення або команду (наприклад, exchange 2 USD EUR)">
+    <script>
+        const ws = new WebSocket("ws://localhost:8765");
+        const chat = document.getElementById("chat");
+        const input = document.getElementById("input");
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const div = document.createElement("div");
+            div.textContent = data.message || data.error;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        };
+
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter" && input.value.trim()) {
+                const message = input.value.trim();
+                let payload;
+                if (message.startsWith("exchange")) {
+                    payload = { command: message };
+                } else {
+                    payload = { message };
+                }
+                ws.send(JSON.stringify(payload));
+                input.value = "";
+            }
+        });
+
+        ws.onclose = function() {
+            const div = document.createElement("div");
+            div.textContent = "З'єднання закрито";
+            chat.appendChild(div);
+        };
+    </script>
+</body>
+</html>
