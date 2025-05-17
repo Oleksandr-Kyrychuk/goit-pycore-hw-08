@@ -2,6 +2,7 @@ from collections import UserDict
 from datetime import datetime, timedelta
 import pickle
 import os
+from abc import ABC, abstractmethod
 
 # Декоратор для обробки помилок введення
 def input_error(func):
@@ -11,6 +12,34 @@ def input_error(func):
         except (IndexError, ValueError) as e:
             return f"Error: {e}"
     return wrapper
+
+# Абстрактний клас для інтерфейсу користувача
+class UserInterface(ABC):
+    @abstractmethod
+    def display_contacts(self, contacts):
+        pass
+
+    @abstractmethod
+    def display_message(self, message):
+        pass
+
+    @abstractmethod
+    def display_commands(self):
+        pass
+
+# Конкретна реалізація для консолі
+class ConsoleInterface(UserInterface):
+    def display_contacts(self, contacts):
+        if not contacts:
+            self.display_message("No contacts found.")
+        else:
+            self.display_message('\n'.join(str(contact) for contact in contacts))
+
+    def display_message(self, message):
+        print(message)
+
+    def display_commands(self):
+        self.display_message("Available commands: hello, add, change, phone, delete, all, add-birthday, show-birthday, birthdays, close/exit")
 
 # Базовий клас для полів
 class Field:
@@ -46,29 +75,27 @@ class Phone(Field):
         if not value.isdigit() or len(value) != 10:
             raise ValueError("Phone number must be 10 digits.")
 
-# Клас для дня народження: перевіряємо формат та перетворюємо рядок на datetime
+# Клас для дня народження
 class Birthday(Field):
     def __init__(self, value):
         if not self.validate(value):
             raise ValueError("Invalid date format.")
-        self.value = value  # зберігаємо значення як рядок
+        self.value = value
 
     def validate(self, value):
         try:
-            # Перевіряємо правильність формату
             datetime.strptime(value, "%d.%m.%Y")
             return True
         except ValueError:
             return False
     
     def __str__(self):
-        return self.value  # Повертаємо значення у вигляді рядка
+        return self.value
     
     def to_datetime(self):
-        # Перетворюємо значення в datetime для обчислень
         return datetime.strptime(self.value, "%d.%m.%Y")
 
-
+# Клас для запису контакту
 class Record:
     def __init__(self, name):
         self.name = Name(name)
@@ -102,7 +129,7 @@ class Record:
         phones_str = ", ".join(str(p) for p in self.phones)
         return f"Contact name: {self.name}, Phones: {phones_str}{birthday_str}"
 
-# Клас AddressBook, який містить записи (Record) у вигляді словника
+# Клас адресної книги
 class AddressBook(UserDict):
     def add_record(self, record):
         self.data[record.name.value] = record
@@ -121,8 +148,8 @@ class AddressBook(UserDict):
         today = datetime.now().date()
         for record in self.data.values():
             if record.birthday:
-                bd = record.birthday.to_datetime()  # Перетворюємо рядок на datetime
-                current_year_bd = bd.replace(year=today.year).date()  # Використовуємо datetime для маніпуляцій
+                bd = record.birthday.to_datetime()
+                current_year_bd = bd.replace(year=today.year).date()
                 if current_year_bd < today:
                     next_bd = bd.replace(year=today.year + 1).date()
                 else:
@@ -130,27 +157,26 @@ class AddressBook(UserDict):
 
                 delta = (next_bd - today).days
                 if 0 <= delta <= 7:
-                    # Якщо наступний день народження припадає на вихідний, переносимо привітання на понеділок
-                    if next_bd.weekday() == 5:  # субота
+                    if next_bd.weekday() == 5:
                         greeting_date = next_bd + timedelta(days=2)
-                    elif next_bd.weekday() == 6:  # неділя
+                    elif next_bd.weekday() == 6:
                         greeting_date = next_bd + timedelta(days=1)
                     else:
                         greeting_date = next_bd
                     upcoming.append({"name": record.name.value, "birthday": greeting_date.strftime("%d.%m.%Y")})
         return upcoming
 
-
     def __str__(self):
         return '\n'.join(str(record) for record in self.data.values())
 
-# Функція для розбору введення користувача
+# Функція для розбору введення
 def parse_input(user_input):
     parts = user_input.strip().split()
     command = parts[0].lower() if parts else ""
     args = parts[1:]
     return command, args
-#Функція видалення 
+
+# Обробники команд
 @input_error
 def delete_contact(args, book: AddressBook):
     name, *_ = args
@@ -160,7 +186,6 @@ def delete_contact(args, book: AddressBook):
     except ValueError:
         return f"Error: Contact {name} not found."
 
-# Функції-обробники команд з декоратором для помилок
 @input_error
 def add_contact(args, book: AddressBook):
     name, phone, *_ = args
@@ -223,53 +248,55 @@ def upcoming_birthdays(args, book: AddressBook):
     else:
         return "No birthdays in the next 7 days."
 
-#серіалізація
+# Серіалізація
 def save_data(book, filename="addressbook.pkl"):
     with open(filename, "wb") as f:
         pickle.dump(book, f)
 
 def load_data(filename="addressbook.pkl"):
     if not os.path.exists(filename) or os.path.getsize(filename) == 0:
-        return AddressBook()  # Якщо файл відсутній або порожній, повертаємо нову адресну книгу
+        return AddressBook()
     try:
         with open(filename, "rb") as f:
             return pickle.load(f)
     except (EOFError, pickle.UnpicklingError):
-        return AddressBook()  # Якщо файл пошкоджений, повертаємо нову книгу
+        return AddressBook()
 
-
-
+# Головна функція
 def main():
     book = load_data()
-    print("Welcome to the assistant bot!")
+    ui = ConsoleInterface()
+    ui.display_message("Welcome to the assistant bot!")
     while True:
         user_input = input("Enter a command: ")
         command, args = parse_input(user_input)
         
         if command in ["close", "exit"]:
             save_data(book)
-            print("Good bye!")
+            ui.display_message("Good bye!")
             break
         elif command == "hello":
-            print("How can I help you?")
+            ui.display_message("How can I help you?")
         elif command == "add":
-            print(add_contact(args, book))
+            ui.display_message(add_contact(args, book))
         elif command == "change":
-            print(change_contact(args, book))
+            ui.display_message(change_contact(args, book))
         elif command == "phone":
-            print(get_phone(args, book))
+            ui.display_message(get_phone(args, book))
         elif command == "delete":
-            print(delete_contact(args, book))
+            ui.display_message(delete_contact(args, book))
         elif command == "all":
-            print(book)
+            ui.display_contacts(book.data.values())
         elif command == "add-birthday":
-            print(add_birthday_cmd(args, book))
+            ui.display_message(add_birthday_cmd(args, book))
         elif command == "show-birthday":
-            print(show_birthday_cmd(args, book))
+            ui.display_message(show_birthday_cmd(args, book))
         elif command == "birthdays":
-            print(upcoming_birthdays(args, book))
+            ui.display_message(upcoming_birthdays(args, book))
+        elif command == "commands":
+            ui.display_commands()
         else:
-            print("Invalid command.")
+            ui.display_message("Invalid command.")
 
 if __name__ == "__main__":
     main()
