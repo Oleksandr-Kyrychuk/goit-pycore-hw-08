@@ -1,0 +1,6 @@
+django==4.2.7
+psycopg2-binary==2.9.9
+scrapy==2.13.0
+django-crispy-forms==2.0
+crispy-bootstrap4==2022.1
+asgiref==3.7.2
