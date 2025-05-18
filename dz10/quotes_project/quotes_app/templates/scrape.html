@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h1>Scrape Quotes</h1>
+    <form method="post" action="{% url 'scrape' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Start Scraping</button>
+    </form>
+{% endblock %}

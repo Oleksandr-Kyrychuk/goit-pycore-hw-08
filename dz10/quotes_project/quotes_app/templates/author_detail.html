@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h1>{{ author.fullname }}</h1>
+    <p><strong>Born:</strong> {{ author.born_date }} {{ author.born_location }}</p>
+    <p><strong>Description:</strong> {{ author.description }}</p>
+    <h3>Quotes</h3>
+    {% for quote in quotes %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <p class="card-text">{{ quote.quote }}</p>
+                <p class="card-text">
+                    {% for tag in quote.tags.all %}
+                        <a href="{% url 'tag_quotes' tag.name %}" class="badge badge-primary">{{ tag.name }}</a>
+                    {% endfor %}
+                </p>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}
